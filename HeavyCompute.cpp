@@ -42,46 +42,47 @@ int main() {
     int* h_in = new int[N];
     int* h_out_gpu = new int[N];
     int* h_out_cpu = new int[N];
-    for (size_t i = 0; i < N; i++){
+    for(size_t i = 0; i < N; i++) {
         h_in[i] = i % 100; // Simple data initialization
     }
 
     // Allocate device memory
     int *d_in, *d_out;
-    hipMalloc(&d_in, N * sizeof(int));
-    hipMalloc(&d_out, N * sizeof(int));
+    hipError_t err; // Catch the error from hip functions.
+    err = hipMalloc(&d_in, N * sizeof(int));
+    err = hipMalloc(&d_out, N * sizeof(int));
 
     // Copy input data from host to device
-    hipMemcpy(d_in, h_in, N * sizeof(int), hipMemcpyHostToDevice);
+    err = hipMemcpy(d_in, h_in, N * sizeof(int), hipMemcpyHostToDevice);
 
     // --- GPU Timing (using HIP Event) ---
     hipEvent_t start, stop;
-    hipEventCreate(&start);
-    hipEventCreate(&stop);
+    err = hipEventCreate(&start);
+    err = hipEventCreate(&stop);
 
     int threadsPerBlock = 256;
     int blocks = (N + threadsPerBlock - 1) / threadsPerBlock;
 
-    hipEventRecord(start, 0);
+    err = hipEventRecord(start, 0);
     hipLaunchKernelGGL(heavyKernel,
                        dim3(blocks),
                        dim3(threadsPerBlock),
                        0, 0,
                        d_in, d_out, iterations, N);
-    hipEventRecord(stop, 0);
-    hipEventSynchronize(stop);
+    err = hipEventRecord(stop, 0);
+    err = hipEventSynchronize(stop);
     float gpuTimeMs;
-    hipEventElapsedTime(&gpuTimeMs, start, stop);
+    err = hipEventElapsedTime(&gpuTimeMs, start, stop);
     cout << "GPU kernel execution time: " << gpuTimeMs << " ms" << endl;
 
     // Copy GPU computation results back to host
-    hipMemcpy(h_out_gpu, d_out, N * sizeof(int), hipMemcpyDeviceToHost);
+    err = hipMemcpy(h_out_gpu, d_out, N * sizeof(int), hipMemcpyDeviceToHost);
 
     // Free GPU resources
-    hipEventDestroy(start);
-    hipEventDestroy(stop);
-    hipFree(d_in);
-    hipFree(d_out);
+    err = hipEventDestroy(start);
+    err = hipEventDestroy(stop);
+    err = hipFree(d_in);
+    err = hipFree(d_out);
 
     // --- CPU Timing (using std::chrono) ---
     auto cpuStart = chrono::high_resolution_clock::now();
